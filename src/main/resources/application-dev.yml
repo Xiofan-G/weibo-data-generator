@@ -1,0 +1,36 @@
+server:
+  #  端口号
+  port: 8181
+  tomcat:
+    uri-encoding: UTF-8
+  servlet:
+    context-path: /
+spring:
+  mvc:
+    view:
+      prefix: /WEB-INF/jsp/
+      suffix: .jsp
+
+#showSql
+logging:
+  level:
+    com:
+      example:
+        mapper: debug
+  file:
+    name: weibo.log
+
+kafka:
+  producer:
+    servers: 172.31.132.5:9092
+    topic:
+      control: control
+      data: weibo
+    group:
+      id: weibo
+    retries: 0
+    batch:
+      size: 4096
+    linger: 1
+    buffer:
+      memory: 40960
