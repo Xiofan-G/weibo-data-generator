@@ -22,7 +22,7 @@ logging:
 
 kafka:
   producer:
-    servers: 192.168.137.226:9092
+    servers: 172.31.132.5:9092
     topic:
       control: control
       data: weibo
