@@ -12,11 +12,11 @@ public class Weibo extends Vertex {
     private ArrayList<Weibo> mentionedWeibos;
     private ArrayList<User> atUsers;
 
-    public Weibo(String id, String name, String agent, ArrayList<Tag> tags, User author) {
+    public Weibo(String id, String name, String agent, User author) {
         this.id = id;
         this.name = name;
         this.agent = agent;
-        this.tags = tags;
+        this.tags = new ArrayList<>();
         this.author = author;
         this.mentionedWeibos = new ArrayList<>();
         this.atUsers = new ArrayList<>();

@@ -17,8 +17,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
- * kafka Producer Configuration
+ * kafka生产配置
  *
+ * @author Lvjiapeng
  */
 @Configuration
 @EnableKafka

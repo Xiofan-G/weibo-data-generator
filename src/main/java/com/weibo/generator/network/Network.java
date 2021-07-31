@@ -2,6 +2,7 @@ package com.weibo.generator.network;
 
 import com.alibaba.fastjson.JSON;
 import com.weibo.generator.entity.ControlMessage;
+import com.weibo.generator.service.CitiBikeGenerator;
 import com.weibo.generator.service.DataGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -101,23 +102,33 @@ public class Network {
         throwable.printStackTrace();
     }
 
-    public void start() throws InterruptedException {
-        while (true) {
-            System.out.println("=======Generating weibo data=======");
-            try {
+    public void start() throws InterruptedException, IOException {
+       while (true) {
+           System.out.println("=======Generating weibo data=======");
+           try {
                 DataGenerator.generate(this);
-            } catch (Exception exception) {
+           } catch (Exception exception) {
                 DataGenerator.generate(this);
-            }
-        }
-    }
+          }
+       }
+
+
+  //      while (true) {
+     //       System.out.println("=======Generating Citibike data=======");
+    //        try {
+        //        CitiBikeGenerator.generate(this);
+       //     } catch (Exception exception) {
+        //        CitiBikeGenerator.generate(this);
+       //     }
+     //   }
+  }
 
     public void send(String msg, String... topic) {
         ListenableFuture<SendResult<String, String>> future;
         if (topic.length == 0) {
             future = this.kafkaClient.send(kafkaClient.getDefaultTopic(), msg);
         } else {
-            future = this.kafkaClient.send(controlTopic, msg);
+            future = this.kafkaClient.send(topic[0], msg);
         }
 
         future.addCallback(new ListenableFutureCallback<SendResult<String, String>>() {
