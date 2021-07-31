@@ -23,8 +23,6 @@ public class DataGenerator {
     private static int tagCount;
     private static int weiboCount;
     private static int commentCount;
-    private static int sendNumberPerSecond = 10000000;
-    private static int currentSendNumber = 0;
     private static ArrayList<String> tag_list = new ArrayList<>(
             (Arrays.asList(
                     "Happen here his seek site.",
@@ -112,34 +110,25 @@ public class DataGenerator {
         weiboCount = faker.number().numberBetween(userCount, userCount * 2);
         genders[0] = "male";
         genders[1] = "female";
-
     }
 
 
     public static boolean generate(Network client) throws InterruptedException {
         init();
         generateBaseEntities();
-        long startTime;
-        long endTime;
-        long sleepInSec;
+        generateBaseRelations();
+        sendBaseRelations(client);
+
         while (client.serverIsOk()) {
             if (client.hasControlMessage()) {
                 client.sendControlSignal();
             }
-            startTime = System.currentTimeMillis();
 
             sendNewRelations(client);
-            endTime = System.currentTimeMillis();
 
-
-            sleepInSec = 1000 - (endTime - startTime);
-
-            if (sleepInSec < 0) {
-                continue;
-            }
-
-            System.out.println("Thread will sleep for: " + sleepInSec / 1000);
-            Thread.sleep(sleepInSec);
+            int sleepInSec = faker.number().numberBetween(5, 10);
+            System.out.println("Thread will sleep for: " + sleepInSec);
+            Thread.sleep(sleepInSec * 1000);
         }
 
         return true;
@@ -162,35 +151,32 @@ public class DataGenerator {
     }
 
 
-    private static void sendNewRelations(Network client) {
-        currentSendNumber = sendNumberPerSecond;
-        while (currentSendNumber > 0) {
-            int dice = faker.number().numberBetween(1, 6);
-
-            if (dice <= 2) {
-                User newUser = new User(faker.name().name(), faker.idNumber().valid(), getRandomCity(), getRandomAge(), getRandomGender());
-                int fansNumber = Math.min(faker.number().numberBetween(1, currentSendNumber), users.size() / 3);
-                generateRelationUsers(newUser.getFans(), newUser, fansNumber);
-                sendFans(client, newUser);
-                users.add(newUser);
-                currentSendNumber -= fansNumber;
-            } else if (dice <= 4) {
-                Weibo weibo = genNewWeibo();
-                currentSendNumber -= 1;
-                genSingleWeiboRelation(weibo);
-                sendWeibo(client, weibo);
-                weibos.add(weibo);
-            } else {
-                if (currentSendNumber < 2)
-                    continue;
-                Comment comment = genNewComment();
-                currentSendNumber -= 2;
-                genSingleCommentRelation(comment);
-                sendComment(client, comment);
-            }
-        }
+    private static void generateBaseRelations() {
+        // fill user's fans
+        generateUserFans();
+        // fill weibo's at users and mentioned weibos
+        generateWeiboRelation();
+        // fill the comment's at users and mentioned weibos
+        generateCommentRelation();
     }
 
+    private static void sendBaseRelations(Network client) {
+
+        for (User user : users) {
+            sendFans(client, user);
+        }
+
+        for (Weibo weibo : weibos) {
+            sendWeibo(client, weibo);
+        }
+
+        for (Comment comment : comments) {
+            sendComment(client, comment);
+        }
+
+        System.out.println("Finished base relations sending");
+
+    }
 
     private static void sendComment(Network client, Comment comment) {
 
@@ -239,6 +225,30 @@ public class DataGenerator {
     }
 
 
+    private static void sendNewRelations(Network client) {
+        int newRelationNumber = faker.number().numberBetween(1, 10);
+        while (newRelationNumber > 0) {
+
+            int dice = faker.number().numberBetween(1, 6);
+
+            if (dice <= 2) {
+                User newUser = new User(faker.name().name(), faker.idNumber().valid(), getRandomCity(), getRandomAge(), getRandomGender());
+                int fansNumber = faker.number().numberBetween(1, 10);
+                generateRelationUsers(newUser.getFans(), newUser, fansNumber);
+                sendFans(client, newUser);
+            } else if (dice <= 4) {
+                Weibo weibo = genNewWeibo();
+                genSingleWeiboRelation(weibo);
+                sendWeibo(client, weibo);
+            } else {
+                Comment comment = genNewComment();
+                genSingleCommentRelation(comment);
+                sendComment(client, comment);
+            }
+            newRelationNumber -= 1;
+        }
+    }
+
     private static void generateBaseCities() {
         for (int i = 0; i < (cityCount / 2) + 1; i++) {
             cities.add(faker.address().cityName().replace("\"", ""));
@@ -253,6 +263,15 @@ public class DataGenerator {
                     getRandomAge(), getRandomGender()));
         }
 
+    }
+
+    private static void generateUserFans() {
+        // Generate user's fans
+        for (User user : users) {
+            ArrayList<User> fans = user.getFans();
+            int fansNum = faker.number().numberBetween(0, userCount / 10);
+            generateRelationUsers(user.getFans(), user, fansNum);
+        }
     }
 
 
@@ -270,50 +289,37 @@ public class DataGenerator {
     }
 
     private static Weibo genNewWeibo() {
-        return new Weibo(faker.idNumber().valid(), faker.friends().quote().replace("\"", ""), getRandomAgent(), getRandomUser());
+        ArrayList<Tag> weiboTags = generateTags();
+        return new Weibo(faker.idNumber().valid(), faker.friends().quote().replace("\"", ""), getRandomAgent(), weiboTags, getRandomUser());
     }
 
+    private static void generateWeiboRelation() {
+        for (Weibo weibo : weibos) {
+            genSingleWeiboRelation(weibo);
+        }
+    }
 
     private static void genSingleWeiboRelation(Weibo weibo) {
-        if (currentSendNumber < 1) {
-            return;
-        }
-
-        int tagsNum = Math.min(faker.number().numberBetween(0, currentSendNumber), tags.size() / 3);
-        currentSendNumber -= tagsNum;
-        generateTags(weibo, tagsNum);
-
-        if (currentSendNumber < 1) {
-            return;
-        }
-
-        int mentionedNum = Math.min(faker.number().numberBetween(0, currentSendNumber), weibos.size() / 3);
-        currentSendNumber -= mentionedNum;
+        int mentionedNum = faker.number().numberBetween(0, 2);
         generateMentionedWeibos(weibo.getMentionedWeibos(), weibo, mentionedNum);
 
-        if (currentSendNumber < 1) {
-            return;
-        }
-        int atUserNum = Math.min(faker.number().numberBetween(0, currentSendNumber), users.size() / 3);
-        currentSendNumber -= atUserNum;
+        int atUserNum = faker.number().numberBetween(0, 4);
         generateRelationUsers(weibo.getAtUsers(), weibo.getAuthor(), atUserNum);
+    }
+
+    private static void generateCommentRelation() {
+        for (Comment comment : comments) {
+            genSingleCommentRelation(comment);
+        }
 
     }
 
-
     private static void genSingleCommentRelation(Comment comment) {
-        if (currentSendNumber < 1)
-            return;
-        int mentionedNum = Math.min(faker.number().numberBetween(0, currentSendNumber), weibos.size() / 3);
+        int mentionedNum = faker.number().numberBetween(0, 2);
         generateMentionedWeibos(comment.getMentionedWeibos(), comment.getReplyOf(), mentionedNum);
-        currentSendNumber -= mentionedNum;
 
-        if (currentSendNumber < 1)
-            return;
-        int atUserNum = Math.min(faker.number().numberBetween(0, currentSendNumber), users.size() / 3);
+        int atUserNum = faker.number().numberBetween(0, 4);
         generateRelationUsers(comment.getAtUsers(), comment.getAuthor(), atUserNum);
-        currentSendNumber -= atUserNum;
-
     }
 
     private static void generateRelationUsers(ArrayList<User> hasRelatedUsers, User excludeUser, int maxNumber) {
@@ -337,16 +343,13 @@ public class DataGenerator {
         }
     }
 
-    private static void generateTags(Weibo weibo, int maxNumber) {
-        ArrayList<Tag> weiboTags = weibo.getTags();
-        for (int j = 0; j < maxNumber; j++) {
-            Tag newTag = getRandomTag();
-            while (weiboTags.contains(newTag)) {
-                newTag = getRandomTag();
-            }
-            weiboTags.add(newTag);
+    private static ArrayList<Tag> generateTags() {
+        int tagNumber = faker.number().numberBetween(0, 4);
+        ArrayList<Tag> weiboTags = new ArrayList<>();
+        for (int j = 0; j < tagNumber; j++) {
+            weiboTags.add(getRandomTag());
         }
-
+        return weiboTags;
     }
 
     private static void generateBaseComments() {
